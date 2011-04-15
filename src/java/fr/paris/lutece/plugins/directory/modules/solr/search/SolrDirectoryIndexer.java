@@ -37,11 +37,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.demo.html.HTMLParser;
-import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.SolrServerException;
 import fr.paris.lutece.plugins.directory.business.Directory;
 import fr.paris.lutece.plugins.directory.business.DirectoryFilter;
 import fr.paris.lutece.plugins.directory.business.DirectoryHome;
@@ -54,7 +54,7 @@ import fr.paris.lutece.plugins.directory.business.RecordFieldFilter;
 import fr.paris.lutece.plugins.directory.business.RecordFieldHome;
 import fr.paris.lutece.plugins.directory.business.RecordHome;
 import fr.paris.lutece.plugins.directory.service.DirectoryPlugin;
-import fr.paris.lutece.plugins.search.solr.business.SolrServerService;
+import fr.paris.lutece.plugins.search.solr.business.field.Field;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexer;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrItem;
 import fr.paris.lutece.portal.service.content.XPageAppService;
@@ -77,9 +77,6 @@ public class SolrDirectoryIndexer implements SolrIndexer
     private static final String PROPERTY_VERSION = "directory-solr.indexer.version";
     private static final String PROPERTY_INDEXER_ENABLE = "directory-solr.indexer.enable";
     private static final String SITE = AppPropertiesService.getProperty( "lutece.name" );
-    private static final SolrServer SOLR_SERVER = SolrServerService.getInstance(  ).getSolrServer(  );
-    private static final String TYPE = "DIRECTORY";
-    public static final String INDEXER_NAME = "DirectoryIndexer";
     public static final String SHORT_NAME = "dry";
     private static final String DIRECTORY = "directory";
     private static final String PARAMETER_ID_DIRECTORY_RECORD = "id_directory_record";
@@ -101,9 +98,9 @@ public class SolrDirectoryIndexer implements SolrIndexer
         return AppPropertiesService.getProperty( PROPERTY_VERSION );
     }
 
-    public String index(  )
+    public Map<String, SolrItem> index(  )
     {
-        StringBuilder sbLogs = new StringBuilder(  );
+        Map<String, SolrItem> items = new HashMap<String, SolrItem>(  );
         Plugin plugin = PluginService.getPlugin( DirectoryPlugin.PLUGIN_NAME );
 
         // Index only the directories that have the attribute is_indexed as true
@@ -113,14 +110,6 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
         for ( Directory directory : DirectoryHome.getDirectoryList( dirFilter, plugin ) )
         {
-            sbLogs.append( "indexing " );
-            sbLogs.append( TYPE );
-            sbLogs.append( " id : " );
-            sbLogs.append( directory.getIdDirectory(  ) );
-            sbLogs.append( " Name : " );
-            sbLogs.append( directory.getTitle(  ) );
-            sbLogs.append( "<br/>" );
-
             int nIdDirectory = directory.getIdDirectory(  );
 
             //Index only the records that have the attribute is_enable as true
@@ -159,16 +148,10 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
                         if ( recordDoc != null )
                         {
-                            SOLR_SERVER.addBean( recordDoc );
-
-                            SOLR_SERVER.commit(  );
+                            items.put( getLog( recordDoc ), recordDoc );
                         }
                     }
                     catch ( IOException e )
-                    {
-                        AppLogService.error( e );
-                    }
-                    catch ( SolrServerException e )
                     {
                         AppLogService.error( e );
                     }
@@ -176,12 +159,17 @@ public class SolrDirectoryIndexer implements SolrIndexer
             }
         }
 
-        return sbLogs.toString(  );
+        return items;
     }
 
     public boolean isEnable(  )
     {
         return "true".equalsIgnoreCase( AppPropertiesService.getProperty( PROPERTY_INDEXER_ENABLE ) );
+    }
+
+    public List<Field> getAdditionalFields(  )
+    {
+        return null;
     }
 
     /**
@@ -194,7 +182,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
      * @return a Solr item filled with the record data
      * @throws IOException
      */
-    public SolrItem getDocument( Record record, List<IEntry> listContentEntry, List<IEntry> listTitleEntry,
+    private SolrItem getDocument( Record record, List<IEntry> listContentEntry, List<IEntry> listTitleEntry,
         List<IEntry> listSummaryEntry, Plugin plugin )
         throws IOException
     {
@@ -278,9 +266,6 @@ public class SolrDirectoryIndexer implements SolrIndexer
         // Setting the date field
         item.setDate( record.getDateCreation(  ) );
 
-        // Setting the type field
-        item.setType( DIRECTORY );
-
         UrlItem url = new UrlItem( AppPathService.getPortalUrl(  ) );
         url.addParameter( XPageAppService.PARAM_XPAGE_APP, DIRECTORY );
         url.addParameter( PARAMETER_ID_DIRECTORY_RECORD, record.getIdRecord(  ) );
@@ -294,6 +279,9 @@ public class SolrDirectoryIndexer implements SolrIndexer
         String strUID = Integer.toString( record.getIdRecord(  ) ) + "_" + SHORT_NAME;
         // Setting the Uid field
         item.setUid( strUID );
+
+        // Setting the Type field
+        item.setType( DIRECTORY );
 
         // Setting the Site field
         item.setSite( SITE );
@@ -329,5 +317,24 @@ public class SolrDirectoryIndexer implements SolrIndexer
         }
 
         return sb.toString(  );
+    }
+
+    /**
+     * Generate the log line for the specified {@link SolrItem}
+     * @param item The {@link SolrItem}
+     * @return The string representing the log line
+     */
+    private String getLog( SolrItem item )
+    {
+        StringBuilder sbLogs = new StringBuilder(  );
+        sbLogs.append( "indexing " );
+        sbLogs.append( item.getType(  ) );
+        sbLogs.append( " id : " );
+        sbLogs.append( item.getUid(  ) );
+        sbLogs.append( " Title : " );
+        sbLogs.append( item.getTitle(  ) );
+        sbLogs.append( "<br/>" );
+
+        return sbLogs.toString(  );
     }
 }

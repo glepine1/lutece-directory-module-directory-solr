@@ -4,6 +4,6 @@
 <beans>
     
   <!--                      Search Engine                    -->  
-  <bean id="directorySolrIndexer" class="fr.paris.lutece.plugins.directory.modules.solr.search.SolrDirectoryIndexer" />
+  <bean id="solr.directorySolrIndexer" class="fr.paris.lutece.plugins.directory.modules.solr.search.SolrDirectoryIndexer" />
   
 </beans>
