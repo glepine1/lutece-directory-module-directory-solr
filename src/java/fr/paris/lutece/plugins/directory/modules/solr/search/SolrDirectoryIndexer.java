@@ -40,8 +40,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.demo.html.HTMLParser;
+
 import fr.paris.lutece.plugins.directory.business.Directory;
 import fr.paris.lutece.plugins.directory.business.DirectoryFilter;
 import fr.paris.lutece.plugins.directory.business.DirectoryHome;
@@ -76,12 +78,29 @@ public class SolrDirectoryIndexer implements SolrIndexer
     private static final String PROPERTY_NAME = "directory-solr.indexer.name";
     private static final String PROPERTY_VERSION = "directory-solr.indexer.version";
     private static final String PROPERTY_INDEXER_ENABLE = "directory-solr.indexer.enable";
-    private static final String SITE = AppPropertiesService.getProperty( "lutece.name" );
+
+    // Site name
+    private static final String PROPERTY_SITE = "lutece.name";
+    private static final String PROPERTY_PROD_URL = "lutece.prod.url";
     public static final String SHORT_NAME = "dry";
     private static final String DIRECTORY = "directory";
     private static final String PARAMETER_ID_DIRECTORY_RECORD = "id_directory_record";
     private static final String PARAMETER_VIEW_DIRECTORY_RECORD = "view_directory_record";
     private static final String ROLE_NONE = "none";
+    private String _strSite;
+    private String _strProdUrl;
+
+    public SolrDirectoryIndexer(  )
+    {
+        super(  );
+        _strSite = AppPropertiesService.getProperty( PROPERTY_SITE );
+        _strProdUrl = AppPropertiesService.getProperty( PROPERTY_PROD_URL );
+
+        if ( !_strProdUrl.endsWith( "/" ) )
+        {
+            _strProdUrl = _strProdUrl + "/";
+        }
+    }
 
     public String getDescription(  )
     {
@@ -266,7 +285,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
         // Setting the date field
         item.setDate( record.getDateCreation(  ) );
 
-        UrlItem url = new UrlItem( AppPathService.getPortalUrl(  ) );
+        UrlItem url = new UrlItem( _strProdUrl + AppPathService.getPortalUrl(  ) );
         url.addParameter( XPageAppService.PARAM_XPAGE_APP, DIRECTORY );
         url.addParameter( PARAMETER_ID_DIRECTORY_RECORD, record.getIdRecord(  ) );
         url.addParameter( PARAMETER_VIEW_DIRECTORY_RECORD, "" );
@@ -284,7 +303,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
         item.setType( DIRECTORY );
 
         // Setting the Site field
-        item.setSite( SITE );
+        item.setSite( _strSite );
 
         return item;
     }
