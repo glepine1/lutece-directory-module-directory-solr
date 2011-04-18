@@ -40,10 +40,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.demo.html.HTMLParser;
-
 import fr.paris.lutece.plugins.directory.business.Directory;
 import fr.paris.lutece.plugins.directory.business.DirectoryFilter;
 import fr.paris.lutece.plugins.directory.business.DirectoryHome;
@@ -60,6 +58,7 @@ import fr.paris.lutece.plugins.search.solr.business.field.Field;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexer;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrItem;
 import fr.paris.lutece.portal.service.content.XPageAppService;
+import fr.paris.lutece.portal.service.message.SiteMessageException;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
 import fr.paris.lutece.portal.service.util.AppLogService;
@@ -188,7 +187,70 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
     public List<Field> getAdditionalFields(  )
     {
-        return null;
+        return new ArrayList<Field>(  );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public List<SolrItem> getDocuments( String recordId )
+        throws IOException, InterruptedException, SiteMessageException
+    {
+        Plugin plugin = PluginService.getPlugin( DirectoryPlugin.PLUGIN_NAME );
+
+        int nIdRecord;
+
+        try
+        {
+            nIdRecord = Integer.parseInt( recordId );
+        }
+        catch ( NumberFormatException ne )
+        {
+            AppLogService.error( recordId + " not parseable to an int", ne );
+
+            return new ArrayList<SolrItem>( 0 );
+        }
+
+        Record record = RecordHome.findByPrimaryKey( nIdRecord, plugin );
+        Directory directory = record.getDirectory(  );
+
+        if ( !record.isEnabled(  ) || !directory.isEnabled(  ) || !directory.isIndexed(  ) )
+        {
+            return new ArrayList<SolrItem>( 0 );
+        }
+
+        int nIdDirectory = directory.getIdDirectory(  );
+
+        //Parse the entries to gather the ones marked as indexed
+        EntryFilter entryFilter = new EntryFilter(  );
+        entryFilter.setIdDirectory( nIdDirectory );
+        entryFilter.setIsIndexed( EntryFilter.FILTER_TRUE );
+
+        List<IEntry> listIndexedEntry = EntryHome.getEntryList( entryFilter, plugin );
+
+        entryFilter.setIsIndexed( EntryFilter.ALL_INT );
+        entryFilter.setIsIndexedAsTitle( EntryFilter.FILTER_TRUE );
+
+        List<IEntry> listIndexedAsTitleEntry = EntryHome.getEntryList( entryFilter, plugin );
+
+        entryFilter.setIsIndexedAsTitle( EntryFilter.ALL_INT );
+        entryFilter.setIsIndexedAsSummary( EntryFilter.FILTER_TRUE );
+
+        List<IEntry> listIndexedAsSummaryEntry = EntryHome.getEntryList( entryFilter, plugin );
+
+        SolrItem doc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry, listIndexedAsSummaryEntry, plugin );
+
+        if ( doc != null )
+        {
+            List<SolrItem> listDocument = new ArrayList<SolrItem>( 1 );
+            listDocument.add( doc );
+
+            return listDocument;
+        }
+        else
+        {
+            return new ArrayList<SolrItem>( 0 );
+        }
     }
 
     /**
