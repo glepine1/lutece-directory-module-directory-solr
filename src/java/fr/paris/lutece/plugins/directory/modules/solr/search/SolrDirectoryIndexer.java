@@ -33,15 +33,6 @@
  */
 package fr.paris.lutece.plugins.directory.modules.solr.search;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.apache.commons.lang.StringUtils;
-import org.apache.lucene.demo.html.HTMLParser;
 import fr.paris.lutece.plugins.directory.business.Directory;
 import fr.paris.lutece.plugins.directory.business.DirectoryFilter;
 import fr.paris.lutece.plugins.directory.business.DirectoryHome;
@@ -54,9 +45,12 @@ import fr.paris.lutece.plugins.directory.business.RecordFieldFilter;
 import fr.paris.lutece.plugins.directory.business.RecordFieldHome;
 import fr.paris.lutece.plugins.directory.business.RecordHome;
 import fr.paris.lutece.plugins.directory.service.DirectoryPlugin;
+import fr.paris.lutece.plugins.directory.utils.DirectoryIndexerUtils;
 import fr.paris.lutece.plugins.search.solr.business.field.Field;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexer;
+import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexerService;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrItem;
+import fr.paris.lutece.plugins.search.solr.util.SolrConstants;
 import fr.paris.lutece.portal.service.content.XPageAppService;
 import fr.paris.lutece.portal.service.message.SiteMessageException;
 import fr.paris.lutece.portal.service.plugin.Plugin;
@@ -65,6 +59,18 @@ import fr.paris.lutece.portal.service.util.AppLogService;
 import fr.paris.lutece.portal.service.util.AppPathService;
 import fr.paris.lutece.portal.service.util.AppPropertiesService;
 import fr.paris.lutece.util.url.UrlItem;
+
+import org.apache.commons.lang.StringUtils;
+
+import org.apache.lucene.demo.html.HTMLParser;
+
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 
 /**
@@ -86,6 +92,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
     private static final String PARAMETER_ID_DIRECTORY_RECORD = "id_directory_record";
     private static final String PARAMETER_VIEW_DIRECTORY_RECORD = "view_directory_record";
     private static final String ROLE_NONE = "none";
+    private static final List<String> LIST_RESSOURCES_NAME = new ArrayList<String>(  );
     private String _strSite;
     private String _strProdUrl;
 
@@ -99,26 +106,39 @@ public class SolrDirectoryIndexer implements SolrIndexer
         {
             _strProdUrl = _strProdUrl + "/";
         }
+
+        LIST_RESSOURCES_NAME.add( DirectoryIndexerUtils.CONSTANT_TYPE_RESOURCE );
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public String getDescription(  )
     {
         return AppPropertiesService.getProperty( PROPERTY_DESCRIPTION );
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public String getName(  )
     {
         return AppPropertiesService.getProperty( PROPERTY_NAME );
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public String getVersion(  )
     {
         return AppPropertiesService.getProperty( PROPERTY_VERSION );
     }
 
-    public Map<String, SolrItem> index(  )
+    /**
+     * {@inheritDoc}
+     */
+    public void indexDocuments(  ) throws IOException, InterruptedException, SiteMessageException
     {
-        Map<String, SolrItem> items = new HashMap<String, SolrItem>(  );
         Plugin plugin = PluginService.getPlugin( DirectoryPlugin.PLUGIN_NAME );
 
         // Index only the directories that have the attribute is_indexed as true
@@ -159,32 +179,29 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
                 for ( Record record : listRecord )
                 {
-                    try
-                    {
-                        SolrItem recordDoc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry,
-                                listIndexedAsSummaryEntry, plugin );
+                    SolrItem recordDoc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry,
+                            listIndexedAsSummaryEntry, plugin );
 
-                        if ( recordDoc != null )
-                        {
-                            items.put( getLog( recordDoc ), recordDoc );
-                        }
-                    }
-                    catch ( IOException e )
+                    if ( recordDoc != null )
                     {
-                        AppLogService.error( e );
+                        SolrIndexerService.write( recordDoc );
                     }
                 }
             }
         }
-
-        return items;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public boolean isEnable(  )
     {
         return "true".equalsIgnoreCase( AppPropertiesService.getProperty( PROPERTY_INDEXER_ENABLE ) );
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public List<Field> getAdditionalFields(  )
     {
         return new ArrayList<Field>(  );
@@ -194,7 +211,6 @@ public class SolrDirectoryIndexer implements SolrIndexer
      * {@inheritDoc}
      */
     public List<SolrItem> getDocuments( String recordId )
-        throws IOException, InterruptedException, SiteMessageException
     {
         Plugin plugin = PluginService.getPlugin( DirectoryPlugin.PLUGIN_NAME );
 
@@ -238,19 +254,25 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
         List<IEntry> listIndexedAsSummaryEntry = EntryHome.getEntryList( entryFilter, plugin );
 
-        SolrItem doc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry, listIndexedAsSummaryEntry, plugin );
+        List<SolrItem> listDocument = Collections.EMPTY_LIST;
 
-        if ( doc != null )
+        try
         {
-            List<SolrItem> listDocument = new ArrayList<SolrItem>( 1 );
-            listDocument.add( doc );
+            SolrItem doc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry, listIndexedAsSummaryEntry,
+                    plugin );
 
-            return listDocument;
+            if ( doc != null )
+            {
+                listDocument = new ArrayList<SolrItem>( 1 );
+                listDocument.add( doc );
+            }
         }
-        else
+        catch ( IOException e )
         {
-            return new ArrayList<SolrItem>( 0 );
+            throw new RuntimeException( e );
         }
+
+        return listDocument;
     }
 
     /**
@@ -357,9 +379,9 @@ public class SolrDirectoryIndexer implements SolrIndexer
         //Add the uid as a field, so that index can be incrementally maintained.
         // This field is not stored with question/answer, it is indexed, but it is not
         // tokenized prior to indexing.
-        String strUID = Integer.toString( record.getIdRecord(  ) ) + "_" + SHORT_NAME;
         // Setting the Uid field
-        item.setUid( strUID );
+        item.setUid( getResourceUid( Integer.toString( record.getIdRecord(  ) ),
+                DirectoryIndexerUtils.CONSTANT_TYPE_RESOURCE ) );
 
         // Setting the Type field
         item.setType( DIRECTORY );
@@ -401,21 +423,21 @@ public class SolrDirectoryIndexer implements SolrIndexer
     }
 
     /**
-     * Generate the log line for the specified {@link SolrItem}
-     * @param item The {@link SolrItem}
-     * @return The string representing the log line
+     * {@inheritDoc}
      */
-    private String getLog( SolrItem item )
+    public List<String> getResourcesName(  )
     {
-        StringBuilder sbLogs = new StringBuilder(  );
-        sbLogs.append( "indexing " );
-        sbLogs.append( item.getType(  ) );
-        sbLogs.append( " id : " );
-        sbLogs.append( item.getUid(  ) );
-        sbLogs.append( " Title : " );
-        sbLogs.append( item.getTitle(  ) );
-        sbLogs.append( "<br/>" );
+        return LIST_RESSOURCES_NAME;
+    }
 
-        return sbLogs.toString(  );
+    /**
+     * {@inheritDoc}
+     */
+    public String getResourceUid( String strResourceId, String strResourceType )
+    {
+        StringBuffer sb = new StringBuffer( strResourceId );
+        sb.append( SolrConstants.CONSTANT_UNDERSCORE ).append( SHORT_NAME );
+
+        return sb.toString(  );
     }
 }
