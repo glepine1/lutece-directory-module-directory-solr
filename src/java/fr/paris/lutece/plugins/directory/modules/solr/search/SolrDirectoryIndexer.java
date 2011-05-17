@@ -33,6 +33,16 @@
  */
 package fr.paris.lutece.plugins.directory.modules.solr.search;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.lucene.demo.html.HTMLParser;
+
 import fr.paris.lutece.plugins.directory.business.Directory;
 import fr.paris.lutece.plugins.directory.business.DirectoryFilter;
 import fr.paris.lutece.plugins.directory.business.DirectoryHome;
@@ -56,21 +66,8 @@ import fr.paris.lutece.portal.service.message.SiteMessageException;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
 import fr.paris.lutece.portal.service.util.AppLogService;
-import fr.paris.lutece.portal.service.util.AppPathService;
 import fr.paris.lutece.portal.service.util.AppPropertiesService;
 import fr.paris.lutece.util.url.UrlItem;
-
-import org.apache.commons.lang.StringUtils;
-
-import org.apache.lucene.demo.html.HTMLParser;
-
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 
 /**
@@ -84,28 +81,16 @@ public class SolrDirectoryIndexer implements SolrIndexer
     private static final String PROPERTY_VERSION = "directory-solr.indexer.version";
     private static final String PROPERTY_INDEXER_ENABLE = "directory-solr.indexer.enable";
 
-    // Site name
-    private static final String PROPERTY_SITE = "lutece.name";
-    private static final String PROPERTY_PROD_URL = "lutece.prod.url";
     public static final String SHORT_NAME = "dry";
     private static final String DIRECTORY = "directory";
     private static final String PARAMETER_ID_DIRECTORY_RECORD = "id_directory_record";
     private static final String PARAMETER_VIEW_DIRECTORY_RECORD = "view_directory_record";
     private static final String ROLE_NONE = "none";
     private static final List<String> LIST_RESSOURCES_NAME = new ArrayList<String>(  );
-    private String _strSite;
-    private String _strProdUrl;
 
     public SolrDirectoryIndexer(  )
     {
         super(  );
-        _strSite = AppPropertiesService.getProperty( PROPERTY_SITE );
-        _strProdUrl = AppPropertiesService.getProperty( PROPERTY_PROD_URL );
-
-        if ( !_strProdUrl.endsWith( "/" ) )
-        {
-            _strProdUrl = _strProdUrl + "/";
-        }
 
         LIST_RESSOURCES_NAME.add( DirectoryIndexerUtils.CONSTANT_TYPE_RESOURCE );
     }
@@ -369,7 +354,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
         // Setting the date field
         item.setDate( record.getDateCreation(  ) );
 
-        UrlItem url = new UrlItem( _strProdUrl + AppPathService.getPortalUrl(  ) );
+        UrlItem url = new UrlItem( SolrIndexerService.getBaseUrl(  ) );
         url.addParameter( XPageAppService.PARAM_XPAGE_APP, DIRECTORY );
         url.addParameter( PARAMETER_ID_DIRECTORY_RECORD, record.getIdRecord(  ) );
         url.addParameter( PARAMETER_VIEW_DIRECTORY_RECORD, "" );
@@ -387,7 +372,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
         item.setType( DIRECTORY );
 
         // Setting the Site field
-        item.setSite( _strSite );
+        item.setSite( SolrIndexerService.getWebAppName(  ) );
 
         return item;
     }
