@@ -62,7 +62,6 @@ import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexerService;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrItem;
 import fr.paris.lutece.plugins.search.solr.util.SolrConstants;
 import fr.paris.lutece.portal.service.content.XPageAppService;
-import fr.paris.lutece.portal.service.message.SiteMessageException;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
 import fr.paris.lutece.portal.service.util.AppLogService;
@@ -88,6 +87,8 @@ public class SolrDirectoryIndexer implements SolrIndexer
     private static final String ROLE_NONE = "none";
     private static final List<String> LIST_RESSOURCES_NAME = new ArrayList<String>(  );
 
+    private static final String DIRECTORY_INDEXATION_ERROR = "[SolrDirectoryIndexer] An error occured during the indexation of the record number ";
+    
     public SolrDirectoryIndexer(  )
     {
         super(  );
@@ -122,10 +123,11 @@ public class SolrDirectoryIndexer implements SolrIndexer
     /**
      * {@inheritDoc}
      */
-    public void indexDocuments(  ) throws IOException, InterruptedException, SiteMessageException
+    public List<String> indexDocuments(  )
     {
         Plugin plugin = PluginService.getPlugin( DirectoryPlugin.PLUGIN_NAME );
-
+        List<String> lstErrors = new ArrayList<String>(  );
+        
         // Index only the directories that have the attribute is_indexed as true
         DirectoryFilter dirFilter = new DirectoryFilter(  );
         dirFilter.setIsIndexed( DirectoryFilter.FILTER_TRUE );
@@ -133,47 +135,57 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
         for ( Directory directory : DirectoryHome.getDirectoryList( dirFilter, plugin ) )
         {
-            int nIdDirectory = directory.getIdDirectory(  );
+        	try
+        	{
+        		int nIdDirectory = directory.getIdDirectory(  );
 
-            //Index only the records that have the attribute is_enable as true
-            RecordFieldFilter recFilter = new RecordFieldFilter(  );
-            recFilter.setIdDirectory( nIdDirectory );
-            recFilter.setIsDisabled( RecordFieldFilter.FILTER_TRUE ); //Bad naming: IsDisable( true ) stands for enabled
+        		//Index only the records that have the attribute is_enable as true
+        		RecordFieldFilter recFilter = new RecordFieldFilter(  );
+        		recFilter.setIdDirectory( nIdDirectory );
+        		recFilter.setIsDisabled( RecordFieldFilter.FILTER_TRUE ); //Bad naming: IsDisable( true ) stands for enabled
 
-            List<Record> listRecord = RecordHome.getListRecord( recFilter, plugin );
+        		List<Record> listRecord = RecordHome.getListRecord( recFilter, plugin );
 
-            //Keep processing this directory only if there are enabled records
-            if ( !listRecord.isEmpty(  ) )
-            {
-                //Parse the entries to gather the ones marked as indexed
-                EntryFilter entryFilter = new EntryFilter(  );
-                entryFilter.setIdDirectory( nIdDirectory );
-                entryFilter.setIsIndexed( EntryFilter.FILTER_TRUE );
+        		//Keep processing this directory only if there are enabled records
+        		if ( !listRecord.isEmpty(  ) )
+        		{
+        			//Parse the entries to gather the ones marked as indexed
+        			EntryFilter entryFilter = new EntryFilter(  );
+        			entryFilter.setIdDirectory( nIdDirectory );
+        			entryFilter.setIsIndexed( EntryFilter.FILTER_TRUE );
 
-                List<IEntry> listIndexedEntry = EntryHome.getEntryList( entryFilter, plugin );
+        			List<IEntry> listIndexedEntry = EntryHome.getEntryList( entryFilter, plugin );
 
-                entryFilter.setIsIndexed( EntryFilter.ALL_INT );
-                entryFilter.setIsIndexedAsTitle( EntryFilter.FILTER_TRUE );
+        			entryFilter.setIsIndexed( EntryFilter.ALL_INT );
+        			entryFilter.setIsIndexedAsTitle( EntryFilter.FILTER_TRUE );
 
-                List<IEntry> listIndexedAsTitleEntry = EntryHome.getEntryList( entryFilter, plugin );
+        			List<IEntry> listIndexedAsTitleEntry = EntryHome.getEntryList( entryFilter, plugin );
 
-                entryFilter.setIsIndexedAsTitle( EntryFilter.ALL_INT );
-                entryFilter.setIsIndexedAsSummary( EntryFilter.FILTER_TRUE );
+        			entryFilter.setIsIndexedAsTitle( EntryFilter.ALL_INT );
+        			entryFilter.setIsIndexedAsSummary( EntryFilter.FILTER_TRUE );
 
-                List<IEntry> listIndexedAsSummaryEntry = EntryHome.getEntryList( entryFilter, plugin );
+        			List<IEntry> listIndexedAsSummaryEntry = EntryHome.getEntryList( entryFilter, plugin );
 
-                for ( Record record : listRecord )
-                {
-                    SolrItem recordDoc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry,
-                            listIndexedAsSummaryEntry, plugin );
+        			for ( Record record : listRecord )
+        			{
+        				SolrItem recordDoc = getDocument( record, listIndexedEntry, listIndexedAsTitleEntry,
+        						listIndexedAsSummaryEntry, plugin );
 
-                    if ( recordDoc != null )
-                    {
-                        SolrIndexerService.write( recordDoc );
-                    }
-                }
-            }
+        				if ( recordDoc != null )
+        				{
+        					SolrIndexerService.write( recordDoc );
+        				}
+        			}
+        		}
+        	}
+        	catch ( Exception e )
+        	{
+        		lstErrors.add( SolrIndexerService.buildErrorMessage( e ) );
+				AppLogService.error( DIRECTORY_INDEXATION_ERROR + directory.getIdDirectory(  ), e );
+			}
         }
+        
+        return lstErrors;
     }
 
     /**
