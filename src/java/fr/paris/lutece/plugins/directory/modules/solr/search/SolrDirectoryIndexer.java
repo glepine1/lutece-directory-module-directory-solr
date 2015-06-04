@@ -33,15 +33,24 @@
  */
 package fr.paris.lutece.plugins.directory.modules.solr.search;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.lucene.demo.html.HTMLParser;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.html.HtmlParser;
+import org.apache.tika.sax.BodyContentHandler;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 import fr.paris.lutece.plugins.directory.business.Directory;
 import fr.paris.lutece.plugins.directory.business.DirectoryFilter;
@@ -324,21 +333,18 @@ public class SolrDirectoryIndexer implements SolrIndexer
 
             if ( StringUtils.isNotBlank( strContent ) )
             {
-                // Setting the Content field
-                StringReader readerPage = new StringReader( strContent );
-                HTMLParser parser = new HTMLParser( readerPage );
-
-                Reader reader = parser.getReader(  );
-                int c;
-                StringBuffer sb = new StringBuffer(  );
-
-                while ( ( c = reader.read(  ) ) != -1 )
-                {
-                    sb.append( String.valueOf( (char) c ) );
-                }
-
-                reader.close(  );
-                item.setContent( sb.toString(  ) );
+                HtmlParser parser = new HtmlParser(  );
+                ContentHandler handler = new BodyContentHandler();
+                Metadata metadata = new Metadata();
+                InputStream stream = new ByteArrayInputStream(strContent.getBytes(StandardCharsets.UTF_8));
+                try {
+        			parser.parse(stream,  handler, metadata, new ParseContext());
+        		} catch (SAXException e) {
+        			e.printStackTrace();
+        		} catch (TikaException e) {
+        			e.printStackTrace();
+        		}
+                item.setContent( handler.toString(  ) );
             }
         }
 
