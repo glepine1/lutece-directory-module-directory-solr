@@ -9,7 +9,7 @@
     <groupId>fr.paris.lutece.plugins</groupId>
     <artifactId>module-directory-solr</artifactId>
     <packaging>lutece-plugin</packaging>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.3</version>
     <name>Module directory Solr</name>
     <repositories>
         <repository>
@@ -56,5 +56,6 @@
         <connection>scm:git:https://github.com/lutece-platform/lutece-directory-module-directory-solr.git</connection>
         <developerConnection>scm:git:https://github.com/lutece-platform/lutece-directory-module-directory-solr.git</developerConnection>
         <url>https://github.com/lutece-platform/lutece-directory-module-directory-solr.git</url>
-    </scm>
+      <tag>lutece-directory-module-directory-solr-1.0.3</tag>
+  </scm>
 </project>
