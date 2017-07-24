@@ -3,7 +3,7 @@
     <!-- Plugin Informations -->
     <name>directory-solr</name>
     <class>fr.paris.lutece.portal.service.plugin.PluginDefaultImplementation</class>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
     <documentation/>
     <installation/>
     <changes/>
