@@ -65,6 +65,7 @@ import fr.paris.lutece.plugins.directory.business.RecordFieldHome;
 import fr.paris.lutece.plugins.directory.business.RecordHome;
 import fr.paris.lutece.plugins.directory.service.DirectoryPlugin;
 import fr.paris.lutece.plugins.directory.utils.DirectoryIndexerUtils;
+import fr.paris.lutece.plugins.directory.utils.DirectoryUtils;
 import fr.paris.lutece.plugins.search.solr.business.field.Field;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexer;
 import fr.paris.lutece.plugins.search.solr.indexer.SolrIndexerService;
@@ -414,7 +415,7 @@ public class SolrDirectoryIndexer implements SolrIndexer
         StringBuffer sb = new StringBuffer(  );
 
         List<RecordField> listField = RecordFieldHome.getRecordFieldSpecificList( listIdEntry, record.getIdRecord(  ),
-                plugin );
+                plugin, DirectoryUtils.getMapFieldsOfListEntry( listEntry, plugin ) );
 
         for ( RecordField field : listField )
         {

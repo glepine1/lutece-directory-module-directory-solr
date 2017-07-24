@@ -37,7 +37,7 @@
         <dependency>
             <groupId>fr.paris.lutece.plugins</groupId>
             <artifactId>plugin-directory</artifactId>
-            <version>[2.0.0,)</version>
+            <version>[4.0.3,)</version>
             <type>lutece-plugin</type>
         </dependency>
         <dependency>
